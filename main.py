@@ -7,52 +7,61 @@ import requests
 import glob
 from datetime import datetime
 
-# --- 1. SAFE IMPORTS ---
+# --- 1. SAFE IMPORTS & COMPATIBILITY ---
 try:
     import pandas_ta as ta
 except ImportError:
+    import pandas_ta_classic as ta
+
+# --- 2. ROBUST CREDENTIAL HANDLER ---
+def get_secret(key):
+    # Try GitHub Actions environment variable first
+    val = os.getenv(key)
+    if val:
+        return val
+    # Fallback to Streamlit secrets
     try:
-        import pandas_ta_classic as ta
-    except ImportError:
-        st.error("Technical analysis library (pandas-ta) not found.")
+        return st.secrets.get(key)
+    except Exception:
+        return None
 
-# --- 2. CREDENTIALS ---
-TOKEN = os.getenv('TELEGRAM_TOKEN') or st.secrets.get("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv('TELEGRAM_CHAT_ID') or st.secrets.get("TELEGRAM_CHAT_ID")
-TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS", "TATASTEEL.NS"]
+TOKEN = get_secret("TELEGRAM_TOKEN")
+CHAT_ID = get_secret("TELEGRAM_CHAT_ID")
 
+# Basic Streamlit UI Setup
 st.set_page_config(page_title="2026 Swing Scanner", layout="wide")
 st.title("📈 Multi-Confluence Swing Dashboard")
 
-# --- 3. LOGIC ---
+if not TOKEN or not CHAT_ID:
+    st.error("Missing Credentials! Set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in Secrets.")
+    st.stop()
+
+# --- 3. CORE LOGIC ---
 def send_telegram(text):
-    if TOKEN and CHAT_ID:
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
-        requests.get(url)
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
+    requests.get(url)
 
 def analyze():
-    for f in glob.glob("*.html"): 
+    # Cleanup old reports
+    for f in glob.glob("*.html"):
         try: os.remove(f)
         except: pass
     
+    tickers = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS", "TATASTEEL.NS"]
     signals = []
-    st.info(f"Scanning {len(TICKERS)} symbols...")
-
-    for t in TICKERS:
+    
+    for t in tickers:
         try:
             df = yf.download(t, period="1y", interval="1d", progress=False)
-            
-            # FIX: Flatten Multi-Index columns (Mandatory for 2026)
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
-            # Technical Indicators
             df['SMA_200'] = ta.sma(df['Close'], length=200)
             df.ta.macd(append=True)
             df.ta.adx(append=True)
             last = df.iloc[-1]
 
-            # Confluence Logic
+            # 3-Point Confluence
             score = 0
             if last['Close'] > last['SMA_200']: score += 1
             if last['ADX_14'] > 20: score += 1
@@ -62,16 +71,16 @@ def analyze():
                 sl = df['Low'].tail(5).min()
                 signals.append(f"✅ {t}: Score {score}/3 @ ₹{round(last['Close'], 2)}")
                 
-                # Visual Dashboard Chart
+                # Visual Chart
                 fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
-                fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text=f"SL: {round(sl, 2)}")
+                fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
                 fig.update_layout(template="plotly_dark", title=f"{t} Analysis", xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, use_container_width=True)
                 fig.write_html(f"{t}_analysis.html")
-        except Exception as e: 
+        except Exception as e:
             st.error(f"Error {t}: {e}")
 
-    if signals: 
+    if signals:
         send_telegram("🚀 Market Scan Results:\n\n" + "\n".join(signals))
 
 if st.sidebar.button('🔄 Refresh Scan'):
