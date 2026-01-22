@@ -16,7 +16,7 @@ jobs:
           python-version: '3.12' # Fixed to 3.12 for library compatibility
       - name: Install Tools
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install yfinance pandas-ta-classic requests
       - name: Run Analysis
         env:
