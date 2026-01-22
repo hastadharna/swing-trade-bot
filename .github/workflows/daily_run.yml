@@ -9,20 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for pandas-ta-classic
-      - name: List Files (Debug)
-        run: ls -R # This shows all files in all folders
+        uses: actions/checkout@v4 # CRITICAL: This pulls your files into the runner
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install Tools
         run: |
-          pip install yfinance pandas-ta-classic requests
+          python -m pip install --upgrade pip
+          pip install yfinance pandas-ta requests
       - name: Run Analysis
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python .github/workflows/main.py
+        run: python main.py # Ensure main.py is in the main folder, NOT inside .github
