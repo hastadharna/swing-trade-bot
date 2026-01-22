@@ -12,6 +12,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Required for pandas-ta-classic
+      - name: List Files (Debug)
+        run: ls -R # This shows all files in all folders
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -23,4 +25,4 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+        run: python .github/workflows/main.py
