@@ -6,36 +6,30 @@ import requests
 import os
 from datetime import datetime
 
-# AUTHENTICATION
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "TATASTEEL.NS", "SBIN.NS"]
+TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS"]
 
 def send_telegram(text):
+    if not TOKEN or not CHAT_ID: return
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
     requests.get(url)
 
 def create_chart(df, ticker, stop_loss, signal):
     fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA_200'], line=dict(color='orange', width=1.5), name='SMA 200'))
-    
-    # Visual Marker for Signal
     color = "green" if "Buy" in signal else "red"
     fig.add_annotation(x=df.index[-1], y=df['Close'].iloc[-1], text=signal, showarrow=True, bgcolor=color, font=dict(color="white"))
-    
-    # Red Dashed Stop-Loss Line
     fig.add_hline(y=stop_loss, line_dash="dash", line_color="red", annotation_text=f"SL: {round(stop_loss, 2)}")
-    
     fig.update_layout(title=f"{ticker} Analysis", template="plotly_dark", xaxis_rangeslider_visible=False)
-    timestamp = datetime.now().strftime("%H%M")
-    fig.write_html(f"{ticker}_{timestamp}.html")
+    fig.write_html(f"{ticker}_analysis.html")
 
 def analyze():
     signals = []
     for t in TICKERS:
         try:
             df = yf.download(t, period="1y", interval="1d", progress=False)
-            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0) # Fix Multi-Index
+            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0) # FIX: Flatten headers
 
             df['SMA_200'] = ta.sma(df['Close'], length=200)
             df.ta.macd(append=True); df.ta.adx(append=True)
@@ -48,12 +42,11 @@ def analyze():
 
             if score >= 2:
                 sl = df['Low'].tail(5).min()
-                sig_text = f"STRONG BUY (Score: {score}/3)"
-                signals.append(f"✅ {t}: {sig_text} @ ₹{round(last['Close'], 2)} | SL: ₹{round(sl, 2)}")
-                create_chart(df, t, sl, sig_text) # Generate visual report
+                signals.append(f"✅ {t}: Score {score}/3 @ ₹{round(last['Close'], 2)}")
+                create_chart(df, t, sl, "STRONG BUY")
         except Exception as e: print(f"Error {t}: {e}")
 
-    report = "🚀 Market Scan Results:\n\n" + "\n".join(signals) if signals else "😴 No setups."
+    report = "🚀 Market Scan:\n\n" + "\n".join(signals) if signals else "😴 No setups."
     send_telegram(report)
 
 if __name__ == "__main__":
