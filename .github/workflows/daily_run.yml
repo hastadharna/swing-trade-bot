@@ -1,7 +1,6 @@
 name: Daily Trading Scan
 on:
   schedule:
-    # IST to UTC conversion
     - cron: '30 04 * * 1-5' # 10:00 AM IST
     - cron: '30 06 * * 1-5' # 12:00 PM IST
     - cron: '00 09 * * 1-5' # 02:30 PM IST
@@ -20,18 +19,18 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # Essential for 2026 libraries
+          python-version: '3.12' # FIXED: Prevents "No matching distribution" error
 
       - name: Install Tools
         run: |
           python -m pip install --upgrade pip
-          pip install streamlit yfinance pandas-ta-classic requests plotly
+          pip install streamlit yfinance pandas-ta-classic requests plotly # Added streamlit
 
       - name: Run Analysis
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py # Runs from root folder
+        run: python main.py # FIXED: Runs from root folder
 
       - name: Upload Visual Charts
         uses: actions/upload-artifact@v4
