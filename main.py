@@ -1,3 +1,7 @@
+try:
+    import streamlit as st
+except ImportError:
+    st = None # This allows the script to continue if Streamlit is missing
 import streamlit as st
 import yfinance as yf
 import pandas_ta as ta
