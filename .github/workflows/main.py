@@ -2,18 +2,23 @@ import yfinance as yf
 import pandas_ta as ta
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 import requests
 import os
 from datetime import datetime
 
+# --- SETTINGS & AUTH ---
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS"]
+TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS", "TATASTEEL.NS"]
+
+st.set_page_config(page_title="2026 Swing Scan", layout="wide")
+st.title("📈 Indian Market Swing Scanner")
 
 def send_telegram(text):
-    if not TOKEN or not CHAT_ID: return
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
-    requests.get(url)
+    if TOKEN and CHAT_ID:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
+        requests.get(url)
 
 def create_chart(df, ticker, stop_loss, signal):
     fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
@@ -21,15 +26,17 @@ def create_chart(df, ticker, stop_loss, signal):
     color = "green" if "Buy" in signal else "red"
     fig.add_annotation(x=df.index[-1], y=df['Close'].iloc[-1], text=signal, showarrow=True, bgcolor=color, font=dict(color="white"))
     fig.add_hline(y=stop_loss, line_dash="dash", line_color="red", annotation_text=f"SL: {round(stop_loss, 2)}")
-    fig.update_layout(title=f"{ticker} Analysis", template="plotly_dark", xaxis_rangeslider_visible=False)
-    fig.write_html(f"{ticker}_analysis.html")
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
 
 def analyze():
     signals = []
     for t in TICKERS:
         try:
             df = yf.download(t, period="1y", interval="1d", progress=False)
-            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0) # FIX: Flatten headers
+            # FIX: Flatten Multi-Index columns
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
 
             df['SMA_200'] = ta.sma(df['Close'], length=200)
             df.ta.macd(append=True); df.ta.adx(append=True)
@@ -42,12 +49,15 @@ def analyze():
 
             if score >= 2:
                 sl = df['Low'].tail(5).min()
-                signals.append(f"✅ {t}: Score {score}/3 @ ₹{round(last['Close'], 2)}")
+                txt = f"✅ {t}: Score {score}/3 @ ₹{round(last['Close'], 2)}"
+                signals.append(txt)
+                st.subheader(f"Analysis for {t}")
                 create_chart(df, t, sl, "STRONG BUY")
-        except Exception as e: print(f"Error {t}: {e}")
+        except Exception as e: st.error(f"Error {t}: {e}")
 
-    report = "🚀 Market Scan:\n\n" + "\n".join(signals) if signals else "😴 No setups."
-    send_telegram(report)
+    if signals: send_telegram("🚀 Market Scan Results:\n\n" + "\n".join(signals))
 
-if __name__ == "__main__":
+if st.button('🔄 Refresh Market Scan'):
+    analyze()
+elif __name__ == "__main__":
     analyze()
