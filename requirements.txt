@@ -1,5 +1,6 @@
+numpy==1.26.4
+pandas==2.2.2
+pandas-ta-classic==0.3.59
 streamlit
-yfinance
-pandas-ta-classic
 plotly
 requests
