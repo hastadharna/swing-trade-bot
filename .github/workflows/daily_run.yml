@@ -1,11 +1,11 @@
 name: Daily Trading Scan
 on:
   schedule:
-    - cron: '30 04 * * 1-5' # 10:00 AM IST (Mon-Fri)
-    - cron: '30 06 * * 1-5' # 12:00 PM IST (Mon-Fri)
-    - cron: '00 09 * * 1-5' # 02:30 PM IST (Mon-Fri)
-    - cron: '05 10 * * 1-5' # 03:35 PM IST (Mon-Fri)
-  workflow_dispatch: # Allows manual trigger from phone
+    - cron: '30 04 * * 1-5' # 10:00 AM IST
+    - cron: '30 06 * * 1-5' # 12:00 PM IST
+    - cron: '00 09 * * 1-5' # 02:30 PM IST
+    - cron: '05 10 * * 1-5' # 03:35 PM IST
+  workflow_dispatch:
 
 jobs:
   trade_job:
@@ -14,26 +14,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for pandas-ta-classic history
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # Required for latest yfinance
+          python-version: '3.12' # UPGRADED: Fixes the 'No matching distribution' error
 
       - name: Install Tools
         run: |
-          pip install --upgrade pip
-          pip install yfinance pandas-ta-classic requests plotly
+          python -m pip install --upgrade pip
+          pip install yfinance pandas-ta-classic requests plotly # FIXED: Uses stable classic version
 
       - name: Run Analysis
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+        run: python main.py # IMPORTANT: main.py MUST be in the root folder
 
       - name: Upload Visual Charts
         uses: actions/upload-artifact@v4
         with:
           name: trading-visuals
-          path: "*.html" # Saves all generated interactive charts
+          path: "*.html"
