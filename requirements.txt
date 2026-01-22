@@ -1,7 +1,6 @@
-numpy
-pandas
-pandas-ta-classic
+streamlit>=1.30.0
+altair<5
 yfinance
+pandas-ta-classic
 plotly
 requests
-streamlit
