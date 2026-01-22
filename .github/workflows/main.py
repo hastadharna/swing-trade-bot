@@ -12,8 +12,7 @@ TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS"]
 
 def send_telegram(text):
     if not TOKEN or not CHAT_ID:
-        print("Error: Telegram credentials missing!")
-        return
+        return print("Error: Missing Telegram Credentials")
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={text}"
     requests.get(url)
 
@@ -22,24 +21,24 @@ def analyze_stocks():
     
     for ticker in TICKERS:
         try:
-            # FIX: yfinance now uses multi-index headers. We flatten them.
+            # Step 1: Download data
             df = yf.download(ticker, period="1y", interval="1d", progress=False)
             if df.empty: continue
             
-            # This line removes the extra 'Ticker' level from the columns
+            # Step 2: FIX - Flatten Multi-Index columns (Vital for 2026)
             if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.droplevel(1)
+                df.columns = df.columns.get_level_values(0)
 
-            # Indicators
-            df['SMA_200'] = ta.sma(df['Close'], length=200)
+            # Step 3: Run Indicators
+            df['SMA200'] = ta.sma(df['Close'], length=200)
             df.ta.macd(append=True)
             df.ta.adx(append=True)
 
             last = df.iloc[-1]
             
-            # Simple 3-point confluence
+            # Step 4: Logic
             score = 0
-            if last['Close'] > last['SMA_200']: score += 1
+            if last['Close'] > last['SMA200']: score += 1
             if last['ADX_14'] > 20: score += 1
             if last['MACD_12_26_9'] > last['MACDs_12_26_9']: score += 1
 
