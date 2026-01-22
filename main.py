@@ -1,3 +1,8 @@
+import sys
+import os
+# Add the current directory to the search path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+print(f"Python Path: {sys.path}")
 import streamlit as st
 import yfinance as yf
 import pandas_ta as ta
