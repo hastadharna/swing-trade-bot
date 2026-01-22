@@ -20,19 +20,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
+          python-version: '3.12' # UPGRADED: Essential for 2026
       - name: Install Tools
         run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas-ta-classic requests plotly streamlit
-
+          pip install --upgrade pip
+          pip install yfinance pandas-ta-classic requests plotly # Use stable classic
       - name: Run Analysis
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py # Ensure main.py is in the root folder!
-
+        run: python main.py # FIXED: Runs from root folder
       - name: Upload Visual Charts
         uses: actions/upload-artifact@v4
         with:
