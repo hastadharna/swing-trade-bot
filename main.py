@@ -8,7 +8,7 @@ import os
 import glob
 from datetime import datetime
 
-# --- AUTHENTICATION ---
+# --- AUTH & CONFIG ---
 TOKEN = st.secrets.get("TELEGRAM_TOKEN") or os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID") or os.getenv('TELEGRAM_CHAT_ID')
 TICKERS = ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "SBIN.NS", "TATASTEEL.NS"]
@@ -22,24 +22,28 @@ def send_telegram(text):
         requests.get(url)
 
 def analyze():
-    signals = []
-    # Clear old reports first
-    for f in glob.glob("*.html"): os.remove(f)
+    # Cleanup old reports to save space
+    for f in glob.glob("*.html"): 
+        try: os.remove(f)
+        except: pass
 
+    signals = []
     for t in TICKERS:
         try:
             df = yf.download(t, period="1y", interval="1d", progress=False)
             
-            # 2026 yfinance Flattening Fix
+            # FIX: Flatten Multi-Index columns (Mandatory for 2026 yfinance)
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
 
-            # Technical Indicators
+            # Indicators using pandas-ta-classic
             df['SMA200'] = ta.sma(df['Close'], length=200)
-            df.ta.macd(append=True); df.ta.adx(append=True)
+            df.ta.macd(append=True)
+            df.ta.adx(append=True)
+            
             last = df.iloc[-1]
 
-            # 4-Point Confluence Logic
+            # 3-Point Confluence Logic
             score = 0
             if last['Close'] > last['SMA200']: score += 1
             if last['ADX_14'] > 20: score += 1
@@ -50,16 +54,19 @@ def analyze():
                 txt = f"✅ {t}: Score {score}/3 @ ₹{round(last['Close'], 2)}"
                 signals.append(txt)
                 
-                # Visual Chart
+                # Create visual chart for Streamlit and GitHub Artifacts
                 fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
                 fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL")
-                fig.update_layout(template="plotly_dark", title=f"{t} Analysis")
+                fig.update_layout(template="plotly_dark", title=f"{t} Analysis", xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, use_container_width=True)
                 fig.write_html(f"{t}_analysis.html")
-        except Exception as e: st.error(f"Error {t}: {e}")
+        except Exception as e: 
+            st.error(f"Error {t}: {e}")
 
-    if signals: send_telegram("🚀 Market Scan Results:\n\n" + "\n".join(signals))
+    if signals: 
+        send_telegram("🚀 Market Scan Results:\n\n" + "\n".join(signals))
 
+# Check if running in Streamlit or as a background script
 if st.sidebar.button('🔄 Refresh Scan'):
     analyze()
 elif __name__ == "__main__":
