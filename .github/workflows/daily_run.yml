@@ -11,24 +11,20 @@ jobs:
   trade_job:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install Tools
         run: |
           python -m pip install --upgrade pip
-          # Upgrade strategy helps resolve the NumPy/Pandas conflict
           pip install --upgrade-strategy eager -r requirements.txt
       - name: Run Analysis
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py
-      - name: Upload Visual Charts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: trading-visuals
+          name: reports
           path: "*.html"
